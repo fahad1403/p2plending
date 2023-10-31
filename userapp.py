@@ -134,7 +134,7 @@ def add_receive_funds_page():
 
         st.markdown(
             '<div style="background-color: #f2f2f2; padding: 10px; border-radius: 5px; text-align: center;">'
-             f'<img src="atm-card.png" width="60" alt="Bank account">'
+             f'<img src="images/atm-card.png" width="60" alt="Bank account">'
             '<p><strong>Virtual Card</strong></p>'
             '<p>Get started</p>'
             '</div>',
@@ -296,7 +296,7 @@ def bank_account_added():
 
     # Center an image
     # image = st.image("right-tick.jpg", use_column_width=True)
-    image=Image.open('right-tick.jpg')
+    image=Image.open('images/right-tick.jpg')
     new_width=100
     new_height=100
     image=image.resize((new_width,new_height))

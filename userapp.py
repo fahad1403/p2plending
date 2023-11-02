@@ -123,21 +123,20 @@ def add_receive_funds_page():
     if st.sidebar:
         # On wider screens, you can use a 2-column layout
         card1, card2 = st.columns([1,1])
-
+        
         with card1:
             st.markdown(
                 '<div style="background-color: #f2f2f2; padding: 5px; border-radius: 5px; text-align: center;margin-bottom:10px;justify-content: space-between; column-gap:5px">'
-                # f'<img src="bank.png" width="30" alt="Bank account">'
                 '<i class="fas fa-university fa-3x"></i>' 
-                # <!-- Font Awesome bank icon -->'
                 '<p><strong>Bank account</strong></p>'
                 '<p>Get started</p>'
                 '</div>',
                 unsafe_allow_html=True
             )
             print('image is being load from card 1 make changes her')
-            # Add vertical space between the columns
+
         st.markdown("<div style='height: 20px;'></div>", unsafe_allow_html=True)
+
         with card2:
             st.markdown(
                 '<div style="background-color: #f2f2f2; padding: 5px; border-radius: 5px; text-align: center;margin-top:20px;justify-content: space-between; column-gap:5px">'
@@ -147,7 +146,7 @@ def add_receive_funds_page():
                 '</div>',
                 unsafe_allow_html=True
             )
-            print('image is being load from card 2 make changes her')
+
             st.session_state.step_business += 1
             if st.button("Add Bank Account"):
                 # bank_account_details_page()
@@ -279,20 +278,22 @@ def bank_account_details_page():
       
 def consumer_page():
     set_custom_css()
-    Free_CashFlow_Dict = {
-        'free cash flows': {
-            '2022-07': 20000.12,
-            '2022-08': 35000.24,
-            '2022-09': -10000.31,
-            '2022-10': -2000.94
-        },
-        'opening balance': '91.29',
-        'closing balance': '10.92',
-        'number of deposits': '86',
-        'number of withdrawals': '318',
-        'revenues': '142,867.60',
-        'expenses': '142,947.97'
-    }
+    # Free_CashFlow_Dict = {
+    #     'free cash flows': {
+    #         '2022-07': 20000.12,
+    #         '2022-08': 35000.24,
+    #         '2022-09': -10000.31,
+    #         '2022-10': -2000.94
+    #     },
+    #     'opening balance': '91.29',
+    #     'closing balance': '10.92',
+    #     'number of deposits': '86',
+    #     'number of withdrawals': '318',
+    #     'revenues': '142,867.60',
+    #     'expenses': '142,947.97'
+    # }
+
+    Free_CashFlow_Dict = st.session_state.free_cash_flow_data
 
     simah_score = '695-699'
     # Extract the values you want and multiply them by 4
@@ -402,23 +403,22 @@ def consumer_page():
     if accept_rate_button:
         print(f"step: {st.session_state.step_business}")
 
+
 def bank_account_added():
     print(f"Dictionary: {st.session_state['gsheet_data']}")
-
-    # Center an image
-    # image = st.image("right-tick.jpg", use_column_width=True)
-    image=Image.open('right-tick.jpg')
-    new_width=100
-    new_height=100
-    image=image.resize((new_width,new_height))
-    st.image(image,use_column_width=True)
+    set_custom_css_investor()
+    st.markdown('<h5 class="title" style="font-size:28px;">Congratulations!</h5>',unsafe_allow_html=True)
+    st.write('<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css">', unsafe_allow_html=True)
     centered_text = '''
     <div style="display: flex; flex-direction: column; justify-content: center; align-items: center; height: 10vh;">
-        <span style="text-align: center; font-weight: bold;">Congratulations!</span>
-        <span style="text-align: center;">Funds will be transferred to your bank account within 3-5 working days</span>
+         <span style="text-align: center; font-weight: bold; font-size: 100px; color: #6CB4EE;">
+        <i class="fas fa-check-circle"></i>
+        </span>
+        <span style="text-align: center; font-size:14px;">Funds will be transferred to your bank account within 3-5 working days</span>
     </div>
     '''
     st.markdown(centered_text, unsafe_allow_html=True)
+
 
 def business_overview():
     logo_url='https://objectstorage.me-jeddah-1.oraclecloud.com/n/idcsprod/b/me-jeddah-idcs-1-9E6C09D36371AB1B7C12FA52FA120B95980D070A43765EF7F2A2F0B0F82948E6/o/images/202109131530/1631547034999/Alraedah-Logo-Landscape-2.jpg'

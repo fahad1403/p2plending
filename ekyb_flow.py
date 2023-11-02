@@ -959,6 +959,7 @@ def expense_benchmarking_page():
                 if not data:
                     st.error("We do not support this bank statement format yet.")
                 else:
+                    st.session_state.free_cash_flow_data = data
                     uploaded_pdf_content = uploaded_file.read()
                     file_name = uploaded_file.name  # Get the file name
                     file_id = upload_to_drive(uploaded_pdf_content, file_name)

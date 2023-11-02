@@ -121,9 +121,8 @@ def add_receive_funds_page():
 
    # Check the screen width to determine the layout
     if st.sidebar:
-        # On wider screens, you can use a 2-column layout
         card1, card2 = st.columns([1,1])
-        
+        st.write('<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css">', unsafe_allow_html=True)
         with card1:
             st.markdown(
                 '<div style="background-color: #f2f2f2; padding: 5px; border-radius: 5px; text-align: center;margin-bottom:10px;justify-content: space-between; column-gap:5px">'
@@ -203,6 +202,7 @@ def save_data_to_sheet():
     
     n = 6
     business_id = ''.join(["{}".format(random.randint(1, 9)) for num in range(0, n)])
+    st.session_state.business_id = business_id
     new_row = {
         "Business_id": str(business_id),
         "business_reg_login": json.dumps(st.session_state['reg_login_details']),
@@ -212,6 +212,9 @@ def save_data_to_sheet():
 
     sheet.append_row(list(new_row.values()), value_input_option='USER_ENTERED', insert_data_option='INSERT_ROWS', table_range="A1")
 
+    new_business_data = pd.DataFrame([new_row])
+    merged_data = pd.concat([business_df, new_business_data], ignore_index = True)
+    st.session_state.business_data = merged_data
 
 def bank_account_details_page():
     receive_funds = {}
@@ -278,20 +281,22 @@ def bank_account_details_page():
       
 def consumer_page():
     set_custom_css()
-    # Free_CashFlow_Dict = {
-    #     'free cash flows': {
-    #         '2022-07': 20000.12,
-    #         '2022-08': 35000.24,
-    #         '2022-09': -10000.31,
-    #         '2022-10': -2000.94
-    #     },
-    #     'opening balance': '91.29',
-    #     'closing balance': '10.92',
-    #     'number of deposits': '86',
-    #     'number of withdrawals': '318',
-    #     'revenues': '142,867.60',
-    #     'expenses': '142,947.97'
-    # }
+
+    if not hasattr(st.session_state, 'free_cash_flow_data'):
+        st.session_state.free_cash_flow_data = {
+            'free cash flows': {
+                '2022-07': 20000.12,
+                '2022-08': 35000.24,
+                '2022-09': -10000.31,
+                '2022-10': -2000.94
+            },
+            'opening balance': '91.29',
+            'closing balance': '10.92',
+            'number of deposits': '86',
+            'number of withdrawals': '318',
+            'revenues': '142,867.60',
+            'expenses': '142,947.97'
+        }
 
     Free_CashFlow_Dict = st.session_state.free_cash_flow_data
 
@@ -419,23 +424,39 @@ def bank_account_added():
     '''
     st.markdown(centered_text, unsafe_allow_html=True)
 
+    st.text("")
+    st.text("")
+    st.text("")
+    st.markdown("<div style='height: 20px;'></div>", unsafe_allow_html=True)
+    
+    registration_details = st.session_state.reg_login_details
+    st.session_state.business_name = registration_details['business_name']
+
+    st.session_state.step_business = 10
+
+    if st.button("Go to Home"):
+        
+        st.experimental_rerun()
+        # business_overview()
 
 def business_overview():
-    logo_url='https://objectstorage.me-jeddah-1.oraclecloud.com/n/idcsprod/b/me-jeddah-idcs-1-9E6C09D36371AB1B7C12FA52FA120B95980D070A43765EF7F2A2F0B0F82948E6/o/images/202109131530/1631547034999/Alraedah-Logo-Landscape-2.jpg'
-    st.markdown(
-        f"""
-        <style>
-        .center-image {{
-            display: flex;
-            justify-content: center;
-        }}
-        </style>
-        <div class="center-image">
-            <img src="{logo_url}" width="100" alt="Logo">
-        </div>
-        """,
-        unsafe_allow_html=True
-    )
+    # hide logo for step 10
+    if st.session_state.step_business != 10:
+        logo_url='https://objectstorage.me-jeddah-1.oraclecloud.com/n/idcsprod/b/me-jeddah-idcs-1-9E6C09D36371AB1B7C12FA52FA120B95980D070A43765EF7F2A2F0B0F82948E6/o/images/202109131530/1631547034999/Alraedah-Logo-Landscape-2.jpg'
+        st.markdown(
+            f"""
+            <style>
+            .center-image {{
+                display: flex;
+                justify-content: center;
+            }}
+            </style>
+            <div class="center-image">
+                <img src="{logo_url}" width="100" alt="Logo">
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
     set_custom_css_investor()
 
     business_name = st.session_state.business_name
@@ -455,128 +476,176 @@ def business_overview():
     active_product_summary_list = []
     investment_received_sum = 0
 
-    for unique_id, business_df in investment_json.items():
-        investment_received_sum += int(business_df["amount_funded"])
-        investment_dict_final = {
-            'Loan Applied': int(business_df["total_required"]),
-            'Term': int(business_df["term"]),
-            'Investment Received': investment_received_sum,
-            'Investment Pending': int(business_df["total_required"]) - investment_received_sum,
-            'Loan ID': int(unique_id)
-        }
+    print(f"\n\ninvestment json: {investment_json}\n\n")
 
-        active_product_summary = {
-            "Loan ID": int(unique_id),
-            "Investor Name": f"{business_df['investor_name']}",  # Update this with the actual investor name
-            "Investment Received": f"{int(business_df['amount_funded'])} SAR",
-            "Date Invested": f"{business_df['Date Invested']}",
-        }
+    if investment_json:
+        for unique_id, business_df in investment_json.items():
+            investment_received_sum += int(business_df["amount_funded"])
+            investment_dict_final = {
+                'Loan Applied': int(business_df["total_required"]),
+                'Term': int(business_df["term"]),
+                'Investment Received': investment_received_sum,
+                'Investment Pending': int(business_df["total_required"]) - investment_received_sum,
+                'Loan ID': int(unique_id)
+            }
 
-        # Append the extracted data to the respective lists
-        investment_dict_list.append(investment_dict_final)
-        active_product_summary_list.append(active_product_summary)
+            active_product_summary = {
+                "Loan ID": int(unique_id),
+                "Investor Name": f"{business_df['investor_name']}",  # Update this with the actual investor name
+                "Investment Received": f"{int(business_df['amount_funded'])} SAR",
+                "Date Invested": f"{business_df['Date Invested']}",
+            }
 
-    card_container = st.container()
+            # Append the extracted data to the respective lists
+            investment_dict_list.append(investment_dict_final)
+            active_product_summary_list.append(active_product_summary)
 
-    with card_container:
-        st.markdown(
-            f"""
-            <div style='background-color: #f4f4f4; padding: 10px; border-radius: 10px; display: flex;'>
-                <div style='flex: 1; color: #4d8ec3; font-family: Arial; font-size: 12px'>
-                    <h3 style='font-size: 16px; color: gray; padding: -10px; font-weight:bold; margin-left:0px;'>My Account #{account_no}</h3>
-                    <ul style='list-style-type:none; padding: 0;'>
-                        {''.join(f"<li style='font-size: 14px;  margin-bottom: 7px; margin-left:5px;'>{key}</li>" for key in investment_dict_final.keys())}
-                    </ul>
-                </div>
-                <div style='flex: 1; color: #4d8ec3; font-family: Arial'>
-                    <h3 style='font-size: 16px; color: gray; margin-left: 70px; margin-top: 0px;'>Details</h3>
-                    <ul style='list-style-type: none; padding: 0;'>
-                        {''.join(f"<li style='font-size: 14px; margin-bottom: 7px; margin-left: 60px;'>{'SAR ' if key != 'Term' and key!='Loan ID' else ''}{value}{' Months' if key == 'Term' else ''}</li>" for key, value in investment_dict_final.items())}
-                    </ul>
-                </div>
-            </div>
-            """,
-            unsafe_allow_html=True,
-        )
-    st.text("")
+        card_container = st.container()
 
-    with st.container():
-        notes_df = pd.DataFrame(investment_dict_list)
-        print(notes_df)
-        # dct2 = {k:[v] for k,v in active_product_summary_list.items()}
-        active_product_summary_df = pd.DataFrame(active_product_summary_list)
-
-        # Display the DataFrames
-        print(notes_df)
-        print(active_product_summary_df)
-
-        st.markdown("<h4 style='color: #3498DB;'>Loan Summary</h4>", unsafe_allow_html=True)
-            
-        # Iterate through the DataFrame rows and create expanders
-        for index, row in active_product_summary_df.iterrows():
-            loan_id = row["Loan ID"]
-            investor_name = row["Investor Name"]
-            investment_received = row["Investment Received"]
-            date_invested = row["Date Invested"]
-            # Define the terms for each loan
-            terms = [12, 9, 6]
-
-            with st.expander(f"Loan ID: {loan_id}"):
-                investment_received = int(investment_received.replace(" SAR", "").replace(",", ""))
-                term = terms[index]  # Get the corresponding term for this row
-                monthly_payment = investment_received / term
-
-                date_invested = datetime.strptime(date_invested, "%d/%m/%Y")
-                expected_payment_dates = [date_invested + relativedelta(months=i) for i in range(term)]
-
-                st.markdown(
+        with card_container:
+            st.markdown(
                 f"""
-                <div style='background-color: #f0f0f0; padding: 10px; border-radius: 10px; display: flex;'>
+                <div style='background-color: #f4f4f4; padding: 10px; border-radius: 10px; display: flex;'>
                     <div style='flex: 1; color: #4d8ec3; font-family: Arial; font-size: 12px'>
-                        <h3 style='font-size: 16px; color: gray; padding: -10px; font-weight:bold; margin-left:0px;'>Loan Details</h3>
+                        <h3 style='font-size: 16px; color: gray; padding: -10px; font-weight:bold; margin-left:-10px;'>My Account #{account_no}</h3>
                         <ul style='list-style-type:none; padding: 0;'>
-                            <li style='font-size: 14px;  margin-bottom: 7px; margin-left:5px;'>Investor Name: {investor_name}</li>
-                            <li style='font-size: 14px;  margin-bottom: 7px; margin-left:5px;'>Date Invested: {date_invested}</li>
-                            <li style='font-size: 14px;  margin-bottom: 7px; margin-left:5px;'>Loan Received: {investment_received}</li>
-                            <li style='font-size: 14px;  margin-bottom: 7px; margin-left:5px;'>Monthly Payment: SAR {monthly_payment:.2f}</li>
-                            <li style='font-size: 14px;  margin-bottom: 7px; margin-left:5px;'>Loan Term: {term} months </li>
+                            {''.join(f"<li style='font-size: 14px;  margin-bottom: 7px; margin-left:5px;'>{key}</li>" for key in investment_dict_final.keys())}
                         </ul>
-                    </div>  
+                    </div>
+                    <div style='flex: 1; color: #4d8ec3; font-family: Arial'>
+                        <h3 style='font-size: 16px; color: gray; margin-left: 70px; margin-top: 0px;'>Details</h3>
+                        <ul style='list-style-type: none; padding: 0;'>
+                            {''.join(f"<li style='font-size: 14px; margin-bottom: 7px; margin-left: 60px;'>{'SAR ' if key != 'Term' and key!='Loan ID' else ''}{value}{' Months' if key == 'Term' else ''}</li>" for key, value in investment_dict_final.items())}
+                        </ul>
+                    </div>
                 </div>
                 """,
                 unsafe_allow_html=True,
             )
+        
+        st.text("")
 
-                st.text("")
-                st.text("")
+        with st.container():
+            notes_df = pd.DataFrame(investment_dict_list)
+            print(notes_df)
+            # dct2 = {k:[v] for k,v in active_product_summary_list.items()}
+            active_product_summary_df = pd.DataFrame(active_product_summary_list)
 
-                st.markdown(
+            # Display the DataFrames
+            print(notes_df)
+            print(active_product_summary_df)
+
+            st.markdown("<h4 style='color: #3498DB;'>Loan Summary</h4>", unsafe_allow_html=True)
+                
+            # Iterate through the DataFrame rows and create expanders
+            for index, row in active_product_summary_df.iterrows():
+                loan_id = row["Loan ID"]
+                investor_name = row["Investor Name"]
+                investment_received = row["Investment Received"]
+                date_invested = row["Date Invested"]
+                # Define the terms for each loan
+                terms = [12, 9, 6]
+
+                with st.expander(f"Loan ID: {loan_id}"):
+                    investment_received = int(investment_received.replace(" SAR", "").replace(",", ""))
+                    term = terms[index]  # Get the corresponding term for this row
+                    monthly_payment = investment_received / term
+
+                    date_invested = datetime.strptime(date_invested, "%d/%m/%Y")
+                    expected_payment_dates = [date_invested + relativedelta(months=i) for i in range(term)]
+
+                    st.markdown(
                     f"""
-                    <style>
-                    .st-e0{{
-                        margin-left:0px;
-                    }}
-                    </style>
                     <div style='background-color: #f0f0f0; padding: 10px; border-radius: 10px; display: flex;'>
                         <div style='flex: 1; color: #4d8ec3; font-family: Arial; font-size: 12px'>
-                            <h3 style='font-size: 16px; color: gray; padding: -10px; font-weight:bold; margin-left:0px;'>Monthly Payment</h3>
+                            <h3 style='font-size: 16px; color: gray; padding: -10px; font-weight:bold; margin-left:0px;'>Loan Details</h3>
                             <ul style='list-style-type:none; padding: 0;'>
-                                <ul style='list-style-type:none; padding: 0;'>
-                                {''.join(f"<li style='font-size: 14px; margin-bottom: 7px;'>SAR {monthly_payment:.2f}</li>" for _ in range(term))}
+                                <li style='font-size: 14px;  margin-bottom: 7px; margin-left:5px;'>Investor Name: {investor_name}</li>
+                                <li style='font-size: 14px;  margin-bottom: 7px; margin-left:5px;'>Date Invested: {date_invested}</li>
+                                <li style='font-size: 14px;  margin-bottom: 7px; margin-left:5px;'>Loan Received: {investment_received}</li>
+                                <li style='font-size: 14px;  margin-bottom: 7px; margin-left:5px;'>Monthly Payment: SAR {monthly_payment:.2f}</li>
+                                <li style='font-size: 14px;  margin-bottom: 7px; margin-left:5px;'>Loan Term: {term} months </li>
                             </ul>
-                        </div>
-                        <div style='flex: 1; color: #4d8ec3; font-family: Arial; font-size: 12px'>
-                            <h3 style='font-size: 16px; color: gray; margin-left: 60px; margin-top: 0px;'>Due Date</h3>
-                            <ul style='list-style-type:none; padding: 0;'>
-                                {''.join(f"<li style='font-size: 14px; margin-bottom: 7px; margin-left: 60px;'>{date.strftime('%d/%m/%Y')}" for date in expected_payment_dates)}
-                            </ul>
-                        </div>
+                        </div>  
                     </div>
                     """,
                     unsafe_allow_html=True,
                 )
 
-                st.text("")
+                    st.text("")
+                    st.text("")
+
+                    st.markdown(
+                        f"""
+                        <style>
+                        .st-e0{{
+                            margin-left:0px;
+                        }}
+                        </style>
+                        <div style='background-color: #f0f0f0; padding: 10px; border-radius: 10px; display: flex;'>
+                            <div style='flex: 1; color: #4d8ec3; font-family: Arial; font-size: 12px'>
+                                <h3 style='font-size: 16px; color: gray; padding: -10px; font-weight:bold; margin-left:0px;'>Monthly Payment</h3>
+                                <ul style='list-style-type:none; padding: 0;'>
+                                    <ul style='list-style-type:none; padding: 0;'>
+                                    {''.join(f"<li style='font-size: 14px; margin-bottom: 7px;'>SAR {monthly_payment:.2f}</li>" for _ in range(term))}
+                                </ul>
+                            </div>
+                            <div style='flex: 1; color: #4d8ec3; font-family: Arial; font-size: 12px'>
+                                <h3 style='font-size: 16px; color: gray; margin-left: 60px; margin-top: 0px;'>Due Date</h3>
+                                <ul style='list-style-type:none; padding: 0;'>
+                                    {''.join(f"<li style='font-size: 14px; margin-bottom: 7px; margin-left: 60px;'>{date.strftime('%d/%m/%Y')}" for date in expected_payment_dates)}
+                                </ul>
+                            </div>
+                        </div>
+                        """,
+                        unsafe_allow_html=True,
+                    )
+
+                    st.text("")
+    else:
+        if not hasattr(st.session_state, 'gsheet_data'):
+            st.session_state.gsheet_data = json.loads(business_data['business_details'])
+        
+        n = 6
+        loan_id = ''.join(["{}".format(random.randint(1, 9)) for num in range(0, n)])
+        account_no = st.session_state.business_id
+        investment_dict_final = {
+                'Loan Applied': int(st.session_state['gsheet_data']['loan_required']),
+                'Term': int(st.session_state['gsheet_data']['term']),
+                'Investment Received': "0",
+                'Investment Pending': int(st.session_state['gsheet_data']['loan_required']),
+                'Loan ID': int(loan_id)
+            }
+        investment_dict_list.append(investment_dict_final)
+
+        card_container = st.container()
+        with card_container:
+            st.markdown(
+                f"""
+                <div style='background-color: #f4f4f4; padding: 10px; border-radius: 10px; display: flex;'>
+                    <div style='flex: 1; color: #4d8ec3; font-family: Arial; font-size: 12px'>
+                        <h3 style='font-size: 16px; color: gray; padding: -10px; font-weight:bold; margin-left:0px;'>My Account #{account_no}</h3>
+                        <ul style='list-style-type:none; padding: 0;'>
+                            {''.join(f"<li style='font-size: 14px;  margin-bottom: 7px; margin-left:5px;'>{key}</li>" for key in investment_dict_final.keys())}
+                        </ul>
+                    </div>
+                    <div style='flex: 1; color: #4d8ec3; font-family: Arial'>
+                        <h3 style='font-size: 16px; color: gray; margin-left: 70px; margin-top: 0px;'>Details</h3>
+                        <ul style='list-style-type: none; padding: 0;'>
+                            {''.join(f"<li style='font-size: 14px; margin-bottom: 7px; margin-left: 60px;'>{'SAR ' if key != 'Term' and key!='Loan ID' else ''}{value}{' Months' if key == 'Term' else ''}</li>" for key, value in investment_dict_final.items())}
+                        </ul>
+                    </div>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
+        
+        st.text("")
+        st.text("")
+        st.markdown("<h4 style='color: #3498DB;'>Loan Summary</h4>", unsafe_allow_html=True)
+        st.write("No Investments received yet!!")
+
+    
 
 def business_main():
     logo_url='https://objectstorage.me-jeddah-1.oraclecloud.com/n/idcsprod/b/me-jeddah-idcs-1-9E6C09D36371AB1B7C12FA52FA120B95980D070A43765EF7F2A2F0B0F82948E6/o/images/202109131530/1631547034999/Alraedah-Logo-Landscape-2.jpg'
@@ -650,6 +719,8 @@ def business_main():
         bank_account_details_page()
     elif st.session_state.step_business == 7:
         bank_account_added()
+    elif st.session_state.step_business == 10:
+        business_overview()
 
 if __name__=='__main__':
     business_main()

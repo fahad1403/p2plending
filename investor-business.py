@@ -391,6 +391,7 @@ if __name__ == "__main__":
     elif st.session_state.main_step == 2:
         investor_main()
     elif st.session_state.main_step == 3:
+        st.session_state.step_business = 0
         business_overview()
     elif st.session_state.main_step == 4:
         business_main()

@@ -10,6 +10,7 @@ import gspread
 from oauth2client.service_account import ServiceAccountCredentials
 import random
 import json
+import re
 
 def monthly_repayment_page():
     set_custom_css()
@@ -30,7 +31,7 @@ def monthly_repayment_page():
     "Loan Amount": loan_amount,
     "Term": term,
     "Rate": rate,
-    "Fees": loan_amount * (rate / 100),
+    "Fees": int(loan_amount * (rate / 100)),
     "Total Amount": loan_amount + (loan_amount * (rate / 100))
     }
     
@@ -66,9 +67,41 @@ def add_repayment_method_page():
     st.markdown('<span style="text-align:center;">We accept any debit/credit card</span>',unsafe_allow_html=True)
     with st.form("repayment_form"):
         card_number = st.text_input("Card Number", placeholder="0000 0000 0000 0000")
+        card_number_validation = None
         exp_input = st.text_input("Expiration (MM//YY)",placeholder="MM/YY")
+        exp_validation = None
         cvv_input = st.text_input("CVV", placeholder="123", type="password")
+        cvv_validation = None
         confirm = st.form_submit_button("Confirm Details")
+    if confirm:
+        card_number = card_number.replace(" ", "")
+        if not card_number.isdigit() or len(card_number) != 16:
+            card_number_validation = "Card number must have exactly 16 digits ."
+        if not re.match(r'^\d{2}/\d{2}$', exp_input):
+            exp_validation = "Please enter the expiration in the format MM/YY."
+        else:
+            month, year = exp_input.split('/')
+            current_year = datetime.now().year
+            if not (1 <= int(month) <= 12):
+                exp_validation = "The month should be between 1 and 12."
+            elif int(year) < current_year % 100:
+                exp_validation = "This card is expired,Please use a Valid card."
+        if not cvv_input.isdigit() or len(cvv_input) != 3:
+            cvv_validation = "CVV must be a 3-digit number."
+    if card_number_validation:
+        st.error(card_number_validation)
+
+    if exp_validation:
+        st.error(exp_validation)
+
+    if cvv_validation:
+        st.error(cvv_validation)
+    # Disable "Confirm Details" button if any field does not meet the desired format
+    if card_number_validation or exp_validation or cvv_validation:
+        st.write("Please correct the errors before submitting.")
+        confirm = False
+    else:
+        confirm=True
 
         if confirm and card_number and exp_input and cvv_input:
             st.session_state.step_business += 1
@@ -167,29 +200,20 @@ def save_data_to_sheet():
 
     data = sheet.get_all_records()
     business_df = pd.DataFrame(data)
-
+    st.session_state.business_df = business_df
+    
     n = 6
     business_id = ''.join(["{}".format(random.randint(1, 9)) for num in range(0, n)])
     new_row = {
         "Business_id": str(business_id),
-        "business_details": json.dumps(st.session_state['gsheet_data']),
+        "business_reg_login": json.dumps(st.session_state['reg_login_details']),
         "investor_investments": json.dumps({}),
-        "business_reg_login": json.dumps(st.session_state['reg_login_details'])
+        "business_details": json.dumps(st.session_state['gsheet_data'])
     }
 
-    print(f"final dict: {new_row}")
+    sheet.append_row(list(new_row.values()), value_input_option='USER_ENTERED', insert_data_option='INSERT_ROWS', table_range="A1")
 
-    new_row_df = pd.DataFrame(new_row, index=[0])
 
-    new_data = pd.concat([new_row_df, business_df], ignore_index=True)
-    updated_records = new_data.to_dict(orient='records')
-
-    sheet.clear()
-    sheet.update([new_data.columns.values.tolist()] + [[i for i in row.values()] for row in updated_records])
-
-    # sheet.update([new_data.columns.values.tolist()] + new_data.values.tolist())
-
-# Function to display bank account details page
 def bank_account_details_page():
     receive_funds = {}
     set_custom_css()
@@ -197,13 +221,46 @@ def bank_account_details_page():
     st.write("Please enter your bank account details")
 
     with st.form("bank_details_form"):
-    # Create a form with text input fields
+        bank_name_validation=None
+        account_number_validation = None
+        iban_validation=None
+        swift_code_validation=None
+        account_name_validation=None
         bank_name = st.text_input("Bank Name", placeholder = "Al Rajhi")
         account_number = st.text_input("Account Number", placeholder = "0000 0000 0000 0000")
         iban = st.text_input("IBAN", placeholder = "GB29NWBK60161331926819")
         swift_code = st.text_input("Swift Code", placeholder = "CHASUS33")
         account_name = st.text_input("Account Name", placeholder = "John Doe")
         confirm = st.form_submit_button("Confirm Details")
+        if confirm:
+            if not bank_name.isalpha() or len(bank_name) > 60 :
+                bank_name_validation = "Bank Name  must have less than 60 Characters."
+            account_number = account_number.replace(" ", "")
+            if not account_number.isdigit() or len(account_number) != 16:
+                account_number_validation = "Account number must have exactly 16 digits ."
+            if not iban.isalnum() or len(iban) != 24 :
+                iban_validation = "Iban Code  must have exactly 24 Alpha Numeric Characters."
+            # Check Swift Code format
+            if not (8 <= len(swift_code) <= 11) or not swift_code.isalnum() or len([c for c in swift_code if c.isdigit()]) > 3:
+                swift_code_validation = "Swift Code must have between 8 and 11 alphanumeric characters with a maximum of 3 digits."
+            if not account_name.isalpha() or len(account_name) > 30 :
+                account_name_validation = "Account Name  must have less than 30  Numeric Characters."
+    if bank_name_validation:
+        st.error(bank_name_validation)
+    if account_number_validation:
+        st.error(account_number_validation)
+    if iban_validation:
+        st.error(iban_validation)
+    if swift_code_validation:
+        st.error(swift_code_validation)
+    if account_name_validation:
+        st.error(account_name_validation)
+# Disable "Confirm Details" button if any field does not meet the desired format
+    if account_number_validation or bank_name_validation or iban_validation or swift_code_validation or account_name_validation:
+        st.write("Please correct the errors before submitting.")
+        confirm = False
+    else:
+        confirm=True
 
         if confirm and bank_name and account_number and iban and swift_code and account_name:
             receive_funds['bank_name'] = bank_name
@@ -221,19 +278,87 @@ def bank_account_details_page():
             st.error("Please Complete All Details Before Submitting")
       
 def consumer_page():
+    set_custom_css()
+    Free_CashFlow_Dict = {
+        'free cash flows': {
+            '2022-07': 20000.12,
+            '2022-08': 35000.24,
+            '2022-09': -10000.31,
+            '2022-10': -2000.94
+        },
+        'opening balance': '91.29',
+        'closing balance': '10.92',
+        'number of deposits': '86',
+        'number of withdrawals': '318',
+        'revenues': '142,867.60',
+        'expenses': '142,947.97'
+    }
+
+    simah_score = '695-699'
+    # Extract the values you want and multiply them by 4
+    free_cash_flows = Free_CashFlow_Dict['free cash flows']
+    values = [int(value * 4) for value in free_cash_flows.values()]
+
+    positive_values = [value for value in values if value > 0]
+    if positive_values:
+        min_value = min(positive_values)
+    else:
+        min_value = 0
+    max_value = max(values)
+    initial_interest_rate = 5.0
+    print('this is initial rate',initial_interest_rate)
+
+    range_values = range(int(min_value), int(max_value) + 1, 100)
+
+    initial_interest_rate = 5.0
+    st.markdown('<h1 class="title">Congratulations!</h1>',unsafe_allow_html=True)
+    st.markdown(f'<span style="text-align:center;color:black;">You are preapproved for up to {max_value} SAR</span>',unsafe_allow_html=True)
+    loan_amount = st.slider("Loan Amount (SAR)", min_value, max_value, min_value, 1000, key="loan_amount")
+    
     st.session_state['gsheet_data'] = {}
     amount_details_dict = {}
-
-    set_custom_css()
-    st.markdown('<h1 class="title">Congratulations!</h1>',unsafe_allow_html=True)
-    st.markdown('<span style="text-align:center;color:black;">You are preapproved for up to 35,000 SAR</span>',unsafe_allow_html=True)
-    loan_amount = st.slider("Loan Amount (SAR)", 500, 35000, 500, 100, key="loan_amount")
     
     st.markdown(f'<span style="text-align:center;">Selected Loan Amount:</span> <span style="font-weight:bold;">{loan_amount} SAR</span>', unsafe_allow_html=True)
 
-    term = st.slider("Term", min_value=12, max_value=36, step=6, format="%d months", key="term")
+    term = st.slider("Term", min_value=6, max_value=12,step=3, format="%d months", key="term")
     
     st.markdown(f'<span style="text-align:center;">Selected Loan Term:</span> <span style="font-weight:bold;">{term} Months</span>', unsafe_allow_html=True)
+    dynamic_rate_loan=0.0
+    # Calculate dynamic interest rate based on the selected loan amount
+    if loan_amount <= min_value:
+        dynamic_rate = 5
+    elif loan_amount >= max_value:
+        dynamic_rate = 8
+    else:
+        rate_range = 8 - 5
+        amount_range = max_value - min_value
+        dynamic_rate_loan = 5 + (rate_range / amount_range) * (loan_amount - min_value)
+
+    if dynamic_rate_loan>0:
+        if term == 6:
+            dynamic_rate = dynamic_rate_loan + 3.0
+        elif term == 9:
+            dynamic_rate = dynamic_rate_loan + 6.0
+        elif term == 12:
+            dynamic_rate = dynamic_rate_loan + 9.0
+    elif loan_amount == max_value:
+        initial_interest_rate = 8.0
+        if term == 6:
+            dynamic_rate = initial_interest_rate + 3.0
+        elif term == 9:
+            dynamic_rate = initial_interest_rate + 6.0
+        elif term == 12:
+            dynamic_rate = initial_interest_rate + 9.0
+    else:
+        if term == 6:
+            dynamic_rate = initial_interest_rate + 3.0
+        elif term == 9:
+            dynamic_rate = initial_interest_rate + 6.0
+        elif term == 12:
+            dynamic_rate = initial_interest_rate + 9.0
+        
+     # Display the calculated interest rate
+    st.markdown(f'<span style="text-align:center;">Calculated Interest Rate:</span> <span style="font-weight:bold;">{dynamic_rate:.1f}%</span>', unsafe_allow_html=True)
 
     loan_purpose = st.selectbox("Loan Purpose", ["Business Expansion", "Other"])
 
@@ -243,7 +368,7 @@ def consumer_page():
 
     accept_rate_button = None
 
-    rate = '6.1%'
+    rate = f'{dynamic_rate:.1f}%'
     if get_rate_button:
         rate_card.markdown(
             '<div style="background-color: #f2f2f2; padding: 10px; border-radius: 5px; display: flex; justify-content: space-between;">'
@@ -256,10 +381,13 @@ def consumer_page():
         st.session_state.term_data = term
         st.session_state.rate_data = rate
 
+        business_name = st.session_state['reg_login_details']['business_name']
+
         if loan_amount and term:
             accept_rate_button = st.button("Accept Rate")
-            amount_details_dict['business_name'] = 'Alraedah'
+            amount_details_dict['business_name'] = business_name
             amount_details_dict['loan_required'] = loan_amount
+            amount_details_dict['simah'] = simah_score
             amount_details_dict['term'] = term
             amount_details_dict['rate'] = rate
             amount_details_dict['repayment'] = {}
@@ -277,26 +405,9 @@ def consumer_page():
 def bank_account_added():
     print(f"Dictionary: {st.session_state['gsheet_data']}")
 
-    logo_url='https://objectstorage.me-jeddah-1.oraclecloud.com/n/idcsprod/b/me-jeddah-idcs-1-9E6C09D36371AB1B7C12FA52FA120B95980D070A43765EF7F2A2F0B0F82948E6/o/images/202109131530/1631547034999/Alraedah-Logo-Landscape-2.jpg'
-     # Center the image dynamically based on screen width
-    st.markdown(
-    f"""
-    <style>
-    .center-image {{
-        display: flex;
-        justify-content: center;
-    }}
-    </style>
-    <div class="center-image">
-        <img src="{logo_url}" width="150" alt="Logo">
-    </div>
-    """,
-    unsafe_allow_html=True
-)
-
     # Center an image
     # image = st.image("right-tick.jpg", use_column_width=True)
-    image=Image.open('images/right-tick.jpg')
+    image=Image.open('right-tick.jpg')
     new_width=100
     new_height=100
     image=image.resize((new_width,new_height))
@@ -310,17 +421,60 @@ def bank_account_added():
     st.markdown(centered_text, unsafe_allow_html=True)
 
 def business_overview():
+    logo_url='https://objectstorage.me-jeddah-1.oraclecloud.com/n/idcsprod/b/me-jeddah-idcs-1-9E6C09D36371AB1B7C12FA52FA120B95980D070A43765EF7F2A2F0B0F82948E6/o/images/202109131530/1631547034999/Alraedah-Logo-Landscape-2.jpg'
+    st.markdown(
+        f"""
+        <style>
+        .center-image {{
+            display: flex;
+            justify-content: center;
+        }}
+        </style>
+        <div class="center-image">
+            <img src="{logo_url}" width="100" alt="Logo">
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
     set_custom_css_investor()
-    st.markdown('<h4 class="business_title">Welcome  Nymcard</h4>',unsafe_allow_html=True)
-    st.markdown("<h5 style='color: #3498DB;'> Summary</h5>", unsafe_allow_html=True)
-    notes_dict = {
-                'Loan Applied': 10000,
-                'Term':24,
-                'Invesment Recieved': 8000,
-                'Invesment Pending': 2000,
-            }
 
-    account_no = 12345
+    business_name = st.session_state.business_name
+
+    st.markdown(f'<h4 class="business_title">Welcome  {business_name}</h4>',unsafe_allow_html=True)
+    st.markdown("<h5 style='color: #3498DB;'> Summary</h5>", unsafe_allow_html=True)
+    business_df = st.session_state.business_data
+    business_id = st.session_state.business_id
+
+    business_data = business_df[business_df['Business_id'] == business_id].iloc[0]
+    investment_dict_str = business_data['investor_investments']
+    investment_json = json.loads(investment_dict_str)
+    
+    account_no = business_id
+    # Initialize empty lists to store extracted data
+    investment_dict_list = []
+    active_product_summary_list = []
+    investment_received_sum = 0
+
+    for unique_id, business_df in investment_json.items():
+        investment_received_sum += int(business_df["amount_funded"])
+        investment_dict_final = {
+            'Loan Applied': int(business_df["total_required"]),
+            'Term': int(business_df["term"]),
+            'Investment Received': investment_received_sum,
+            'Investment Pending': int(business_df["total_required"]) - investment_received_sum,
+            'Loan ID': int(unique_id)
+        }
+
+        active_product_summary = {
+            "Loan ID": int(unique_id),
+            "Investor Name": f"{business_df['investor_name']}",  # Update this with the actual investor name
+            "Investment Received": f"{int(business_df['amount_funded'])} SAR",
+            "Date Invested": f"{business_df['Date Invested']}",
+        }
+
+        # Append the extracted data to the respective lists
+        investment_dict_list.append(investment_dict_final)
+        active_product_summary_list.append(active_product_summary)
 
     card_container = st.container()
 
@@ -331,13 +485,13 @@ def business_overview():
                 <div style='flex: 1; color: #4d8ec3; font-family: Arial; font-size: 12px'>
                     <h3 style='font-size: 16px; color: gray; padding: -10px; font-weight:bold; margin-left:0px;'>My Account #{account_no}</h3>
                     <ul style='list-style-type:none; padding: 0;'>
-                        {''.join(f"<li style='font-size: 14px;  margin-bottom: 7px; margin-left:5px;'>{key}</li>" for key in notes_dict.keys())}
+                        {''.join(f"<li style='font-size: 14px;  margin-bottom: 7px; margin-left:5px;'>{key}</li>" for key in investment_dict_final.keys())}
                     </ul>
                 </div>
                 <div style='flex: 1; color: #4d8ec3; font-family: Arial'>
                     <h3 style='font-size: 16px; color: gray; margin-left: 70px; margin-top: 0px;'>Details</h3>
                     <ul style='list-style-type: none; padding: 0;'>
-                        {''.join(f"<li style='font-size: 14px; margin-bottom: 7px; margin-left: 60px;'>{'SAR ' if key != 'Term' else ''}{value}{' Months' if key == 'Term' else ''}</li>" for key, value in notes_dict.items())}
+                        {''.join(f"<li style='font-size: 14px; margin-bottom: 7px; margin-left: 60px;'>{'SAR ' if key != 'Term' and key!='Loan ID' else ''}{value}{' Months' if key == 'Term' else ''}</li>" for key, value in investment_dict_final.items())}
                     </ul>
                 </div>
             </div>
@@ -345,29 +499,26 @@ def business_overview():
             unsafe_allow_html=True,
         )
     st.text("")
-    active_product_summary_df = pd.DataFrame({
-            "Loan ID": ["25732","25782","29012"],
-            "Investor Name": ["Khalid Ghaifi","Markram","Starc"],
-            "Investment Received": ["4000 SAR","2000 SAR","2000 SAR"],
-            "Date Invested": ["16/9/2023","20/10/2023","14/10/2023"],
-        })
-
-    active_product_summary_df['Date Invested'] = pd.to_datetime(active_product_summary_df['Date Invested'], format='%d/%m/%Y')
-
-    active_product_summary_df = active_product_summary_df.sort_values(by='Date Invested', ascending=False)
-
-    active_product_summary_df = active_product_summary_df.reset_index(drop=True)
 
     with st.container():
+        notes_df = pd.DataFrame(investment_dict_list)
+        print(notes_df)
+        # dct2 = {k:[v] for k,v in active_product_summary_list.items()}
+        active_product_summary_df = pd.DataFrame(active_product_summary_list)
+
+        # Display the DataFrames
+        print(notes_df)
+        print(active_product_summary_df)
+
         st.markdown("<h4 style='color: #3498DB;'>Loan Summary</h4>", unsafe_allow_html=True)
-        st.dataframe(active_product_summary_df)
+            
         # Iterate through the DataFrame rows and create expanders
         for index, row in active_product_summary_df.iterrows():
             loan_id = row["Loan ID"]
             investor_name = row["Investor Name"]
             investment_received = row["Investment Received"]
-            date_invested = row["Date Invested"].strftime("%d/%m/%Y")
-
+            date_invested = row["Date Invested"]
+            # Define the terms for each loan
             terms = [12, 9, 6]
 
             with st.expander(f"Loan ID: {loan_id}"):
@@ -380,7 +531,7 @@ def business_overview():
 
                 st.markdown(
                 f"""
-                <div style='background-color: #f0f0f0; padding: 10px; border-radius: 10px; display: flex; margin-left:-40px;'>
+                <div style='background-color: #f0f0f0; padding: 10px; border-radius: 10px; display: flex;'>
                     <div style='flex: 1; color: #4d8ec3; font-family: Arial; font-size: 12px'>
                         <h3 style='font-size: 16px; color: gray; padding: -10px; font-weight:bold; margin-left:0px;'>Loan Details</h3>
                         <ul style='list-style-type:none; padding: 0;'>
@@ -401,7 +552,12 @@ def business_overview():
 
                 st.markdown(
                     f"""
-                    <div style='background-color: #f0f0f0; padding: 10px; border-radius: 10px; display: flex; margin-left:-40px;'>
+                    <style>
+                    .st-e0{{
+                        margin-left:0px;
+                    }}
+                    </style>
+                    <div style='background-color: #f0f0f0; padding: 10px; border-radius: 10px; display: flex;'>
                         <div style='flex: 1; color: #4d8ec3; font-family: Arial; font-size: 12px'>
                             <h3 style='font-size: 16px; color: gray; padding: -10px; font-weight:bold; margin-left:0px;'>Monthly Payment</h3>
                             <ul style='list-style-type:none; padding: 0;'>
@@ -410,7 +566,7 @@ def business_overview():
                             </ul>
                         </div>
                         <div style='flex: 1; color: #4d8ec3; font-family: Arial; font-size: 12px'>
-                            <h3 style='font-size: 16px; color: gray; margin-left: 60px; margin-top: 0px; margin-bottom: 20px'>Due Date</h3>
+                            <h3 style='font-size: 16px; color: gray; margin-left: 60px; margin-top: 0px;'>Due Date</h3>
                             <ul style='list-style-type:none; padding: 0;'>
                                 {''.join(f"<li style='font-size: 14px; margin-bottom: 7px; margin-left: 60px;'>{date.strftime('%d/%m/%Y')}" for date in expected_payment_dates)}
                             </ul>
@@ -423,6 +579,21 @@ def business_overview():
                 st.text("")
 
 def business_main():
+    logo_url='https://objectstorage.me-jeddah-1.oraclecloud.com/n/idcsprod/b/me-jeddah-idcs-1-9E6C09D36371AB1B7C12FA52FA120B95980D070A43765EF7F2A2F0B0F82948E6/o/images/202109131530/1631547034999/Alraedah-Logo-Landscape-2.jpg'
+    st.markdown(
+        f"""
+        <style>
+        .center-image {{
+            display: flex;
+            justify-content: center;
+        }}
+        </style>
+        <div class="center-image">
+            <img src="{logo_url}" width="100" alt="Logo">
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
     hide_streamlit_style = """
                 <style>
                 div[data-testid="stToolbar"] {
@@ -458,14 +629,16 @@ def business_main():
 
     if 'step_business' not in st.session_state:
         st.session_state.step_business = 1
-    
+        # st.session_state.step_business = 2
+        st.experimental_rerun()
+        
     if 'step' not in st.session_state:
         st.session_state.step = 1
 
     if st.session_state.step_business == 1:
         ekyb_main()
-        # st.session_state.step_business += 1
     elif st.session_state.step_business == 2:
+    # if st.session_state.step_business == 2:
         consumer_page()
     elif st.session_state.step_business == 3:
         monthly_repayment_page()

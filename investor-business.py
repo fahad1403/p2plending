@@ -2,6 +2,12 @@ import streamlit as st
 from bcommon import set_custom_css
 from alraedah_investor import investor_main
 from userapp import business_main, business_overview
+import gspread
+from oauth2client.service_account import ServiceAccountCredentials
+import pandas as pd
+import ast
+import random
+import json
 
 if 'main_step' not in st.session_state:
     st.session_state.main_step = 0
@@ -15,42 +21,35 @@ header{visibility:hidden;}
 """
 # st.markdown(hide_streamlit_style, unsafe_allow_html=True)
 
-def check_business_credentials(username, password):
-    return username == 'business' and password == 'new_business'
+def check_investor_credentials(username, password, credentials_list):
+    for cred in credentials_list:
+        if (username, password) == (cred[0], cred[1]):
+            st.session_state.investor_name = username
+            st.session_state.investor_id = cred[2]
+            return True
+    else:
+        st.error("Invalid Credentials, Please Try Again!!")
 
-def check_investor_credentials(username, password):
-    return username == 'investor' and password == 'new_investor'
+def check_business_credentials(username, password, credentials_list):
+    for cred in credentials_list:
+        if (username, password) == (cred[0], cred[1]):
+            st.session_state.business_name = username
+            st.session_state.business_id = cred[2]
+            return True
+    else:
+        st.error("Invalid Credentials, Please Try Again!!")
 
 def signin():
     set_custom_css()
-    print(f"user type sigin: {st.session_state.user_type}")
-    st.markdown('<h1 class="signin_title">Dear Alraedah company user, welcome to National Single Sign-On</h1>', unsafe_allow_html=True)
-    st.markdown("""
-    <style>
-    .horizontal-bar {
-        background-image: linear-gradient(144deg, #AF40FF, #5B42F3 50%, #00DDEB);
-        box-shadow: rgba(151, 65, 252, 0.2) 0 15px 30px -5px;
-        color: #ffffff;
-        text-align: center;
-        padding: 10px;
-    }
-    </style>
-    <div class="horizontal-bar">User name and password</div>
-    """, unsafe_allow_html=True)
-    st.markdown('<hr>',unsafe_allow_html=True)
+    display_logo()
+    user_type = st.session_state.user_type
+    print(f"user type sigin: {user_type}")
+    
     placeholder = st.empty()
     with placeholder.form("login"):
             st.markdown('<h2 class="creds">Enter your credentials</h2>', unsafe_allow_html=True)
             username = st.text_input("Username")
             password = st.text_input("Password", type="password")
-
-            # if username == 'business' and password == 'new_business':
-            #     st.session_state.main_step = 3
-            #     st.experimental_rerun()
-
-            # elif username == 'investor' and password == 'new_investor':
-            #     st.session_state.main_step = 2
-            #     st.experimental_rerun()
 
             custom_css = """
             <style>
@@ -67,15 +66,65 @@ def signin():
             st.markdown(custom_css, unsafe_allow_html=True)
             # st.markdown('<button class="Login">Login</button>', unsafe_allow_html=True)
             submit_button = st.form_submit_button("Login")
-            if submit_button and check_investor_credentials(username, password):
-                st.session_state.main_step = 2
-                st.experimental_rerun()
-                print(f"main session state: {st.session_state.main_step}")
-            
-            elif submit_button and check_business_credentials(username, password):
-                st.session_state.main_step = 3
-                st.experimental_rerun()
-                print(f"main session state: {st.session_state.main_step}")
+
+            if submit_button:
+                GDRIVE_CREDS = {
+                    "type": "service_account",
+                    "project_id": "st-project-387317",
+                    "private_key_id": "e5778cc6315dac8480eb841efa093147fa47d996",
+                    "private_key": "-----BEGIN PRIVATE KEY-----\nMIIEvgIBADANBgkqhkiG9w0BAQEFAASCBKgwggSkAgEAAoIBAQCwK8/wpxa4JRWx\n7KfObiLoebmjLrAjYpv8E+3yTHqp3X+p/xBgQYrics//LCX8sXsFG77dW4vLib0V\nw2U4uygIvi2juzQKGUpDlb9aZ2jKexuToX+UZoa+RUxZICX+J0oDylK3vqcfsPAD\nhivGzveZSmW9cuuop1PMT/nl9vjEzUjcP3YrCcoMdRCUyVj21u3Vy6Qy0zkZU+iv\nZUfQo4kqDQuQU3qSrgvHrzx/zxhLcHvYXKXcaz31Llbd9kyKo35zaq8XnNOAczpn\ncVmeFbxkcrYfu8JtyIv97lOgTHsuxIDauJ8of5I+3Ng+wMW8uo7z8KawBM8a/YFA\nQzVBP0YLAgMBAAECggEAO4oDE90Uk5WM+H331I9qYtFIyPqtcrgP6ai+oUXxqtj+\nHXDjkvRzwMZ2v1GnYPiGkBppbhxTaa2aZvGLkxnFlPbZK93H36XecGr6qc4LH2tt\nzX4mRPxFi6aWAAUacgPLQu6s+AaKKu68nyRIRT+LdJYtPlLJjE1Ix+M7nNnUB4ad\nsJgG0KiMJib4q721VoEpQCfzgNsKN2TX0pJovokNv8slULMKouul94bSfRn7WeEo\nSyVceewz2JNMmym529bcnrdkSWujLEzXrA5V8GFaNgUcc+oSDlm7maPu9uSMFTv/\nceXgCKikYqik5XOFXjy4xpOnTII9cMUi8nkEWox+AQKBgQDkGBQ0AO1WOWylNCmH\n0Wk53m8701JSOsigG3ZXz7sQYa9rL57bkAk+T4oKL4AS2F14ARo672G2jlga8MY+\nGwBII8eStqtvBgpbfFR458rQT9QmeN59xExHxlDQHq6x9BV27cBb4fr6i9+YnGG0\nGwL3FWx09BSlPgGKIHK8xITJCwKBgQDFuYEPmf08fNq7fWZHqQvU++ma7iuUSCNW\n0v3YAnWO3EIm0rvFjpXzp7t8crkkcywj6TmFtttMm7mXT5nY53C4nDiLl72d8hfr\nFCTXY1NLgucj9AsM1OZnqV0g0FgXUXPFyr4acjYT990Qf9HF/KHLZztkLuxci5jb\np7zht4+XAQKBgQCOBiw2QUmGwdTTfQpLBmqV3Nm4D5oXl4CqqM7kWHVq+thGTm2E\n20fWI6KZOwBtO4nfmhgiEEHwcOuNQtS9gQSI5rZytQlD5Sf31Q+oBPQ1By/bELHA\n78RrgKF7JU+zgH8JAXsf+zLSZNvB48W2ZodPIGja3cwpI9XDkva+cUMZBwKBgDPB\nqjHuSiaCPDNl0NcjPfCjfHPMsmWfOHjqw/2+Lw2VRE+rS/GbsE7WcjJSSXpsF3rS\n+vawddkozjz4Xjoz4wLACeEoeD8W9wHXBQnIey5B9sUnhZj3RdSOtcz4HIcGEDsP\nJhIAIX26nQhLnRqpVaTLwfUof0B+XiXpU3z2MsUBAoGBAME1VwH07HSFjsjRKK+C\n/GphuvXBpBED1hGX7YIE4mF3HCVM8WilvW+2c5cxOnIPEL/M5W69h8Wl5okojpNQ\ngQiXCEd4PAnRNUeAw7fGq9jnl0ax/wmLIXnDl3czojhpKmrKg5cNhRQw0OYjEZrG\nmAO3VDeMT0xk9E1SoTMqTiEO\n-----END PRIVATE KEY-----\n",
+                    "client_email": "collection-app@st-project-387317.iam.gserviceaccount.com",
+                    "client_id": "116665121729126589127",
+                    "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+                    "token_uri": "https://oauth2.googleapis.com/token",
+                    "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+                    "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/collection-app%40st-project-387317.iam.gserviceaccount.com",
+                    "universe_domain": "googleapis.com"
+                    }
+
+                scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/spreadsheets", "https://www.googleapis.com/auth/drive.file", "https://www.googleapis.com/auth/drive"]
+                creds = ServiceAccountCredentials.from_json_keyfile_dict(GDRIVE_CREDS, scope)
+                client = gspread.authorize(creds)
+
+                if user_type == 'investor':
+                    investor_sheet = client.open("streamlit_data").worksheet('investor_details')
+                    data = investor_sheet.get_all_records()
+                    investor_data = pd.DataFrame(data)
+
+                    st.session_state.investor_data = investor_data
+
+                    i_credentials_list = []
+                    for row in investor_data.iterrows():
+                        investor_login_dict = ast.literal_eval(row[1]['investor_reg_login'])
+                        investor_id = row[1]['investor_id']
+                        i_credentials_list.append((investor_login_dict['investor_name'], investor_login_dict['password'], investor_id))
+
+                    print(i_credentials_list)
+
+                    if check_investor_credentials(username, password, i_credentials_list):
+                        st.session_state.main_step = 2
+                        st.experimental_rerun()
+                        print(f"main session state: {st.session_state.main_step}")
+                
+                elif user_type == 'business':
+                    business_sheet = client.open("streamlit_data").worksheet('Business_details')
+                    data = business_sheet.get_all_records()
+                    business_data = pd.DataFrame(data)
+
+                    st.session_state.business_data = business_data
+
+                    b_credentials_list = []
+                    for row in business_data.iterrows():
+                        business_login_dict = ast.literal_eval(row[1]['business_reg_login'])
+                        business_id = row[1]['Business_id']
+                        b_credentials_list.append((business_login_dict['business_name'], business_login_dict['password'], business_id))
+
+                    print(b_credentials_list)
+
+                    if check_business_credentials(username, password, b_credentials_list):
+                        st.session_state.main_step = 3
+                        st.experimental_rerun()
+                        print(f"main session state: {st.session_state.main_step}")
 
             col1, col2 = st.columns([2, 1])
             st.write('''<style>
@@ -109,6 +158,22 @@ def signin():
 
     st.markdown('<hr>',unsafe_allow_html=True)
 
+def display_logo():
+    logo_url='https://objectstorage.me-jeddah-1.oraclecloud.com/n/idcsprod/b/me-jeddah-idcs-1-9E6C09D36371AB1B7C12FA52FA120B95980D070A43765EF7F2A2F0B0F82948E6/o/images/202109131530/1631547034999/Alraedah-Logo-Landscape-2.jpg'
+    st.markdown(
+        f"""
+        <style>
+        .center-image {{
+            display: flex;
+            justify-content: center;
+        }}
+        </style>
+        <div class="center-image">
+            <img src="{logo_url}" width="100" alt="Logo">
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
 
 def create_account():
     reg_login_details_dict = {}
@@ -122,7 +187,7 @@ def create_account():
     <style>
     .center-image {{
         display: flex;
-        justify-content: left;
+        justify-content: center;
     }}
     </style>
     <div class="center-image">
@@ -145,129 +210,96 @@ def create_account():
     col1, col2 = st.columns([1,1])
 
     country_code = col1.selectbox("Country Code", ["+1", "+44", "+966", "+971", "+91"], index=2)
-
     phone_number = col2.text_input("Phone Number", placeholder="Enter your phone number")
     password = st.text_input("Password", placeholder="Enter your password", type="password")
-
     full_phone_number = f"{country_code} {phone_number}"
-
-    reg_login_details_dict = {
-        'business_name': name,
-        'email': email,
-        'phone': full_phone_number,
-        'password': password,
-    }
-
-    st.session_state.reg_login_details = reg_login_details_dict
 
     st.markdown('<h5 class="create_account_terms">By continuing, you agree with our Terms & Conditions.</h5>',unsafe_allow_html=True)
     continue_btn = st.button("Continue")
-    if continue_btn and user_type=='business':
-        st.session_state.main_step = 4
-        st.experimental_rerun()
-    if continue_btn and user_type=='investor':
-        st.session_state.main_step = 2
-        st.experimental_rerun()
+
+    if continue_btn and name and email and full_phone_number and password:
+        if user_type=='business':
+            reg_login_details_dict = {
+                'business_name': name,
+                'email': email,
+                'phone': full_phone_number,
+                'password': password,
+            }
+
+            st.session_state.reg_login_details = reg_login_details_dict
+            st.session_state.main_step = 4
+            st.experimental_rerun()
+
+        if user_type=='investor':
+            GDRIVE_CREDS = {
+                "type": "service_account",
+                "project_id": "st-project-387317",
+                "private_key_id": "e5778cc6315dac8480eb841efa093147fa47d996",
+                "private_key": "-----BEGIN PRIVATE KEY-----\nMIIEvgIBADANBgkqhkiG9w0BAQEFAASCBKgwggSkAgEAAoIBAQCwK8/wpxa4JRWx\n7KfObiLoebmjLrAjYpv8E+3yTHqp3X+p/xBgQYrics//LCX8sXsFG77dW4vLib0V\nw2U4uygIvi2juzQKGUpDlb9aZ2jKexuToX+UZoa+RUxZICX+J0oDylK3vqcfsPAD\nhivGzveZSmW9cuuop1PMT/nl9vjEzUjcP3YrCcoMdRCUyVj21u3Vy6Qy0zkZU+iv\nZUfQo4kqDQuQU3qSrgvHrzx/zxhLcHvYXKXcaz31Llbd9kyKo35zaq8XnNOAczpn\ncVmeFbxkcrYfu8JtyIv97lOgTHsuxIDauJ8of5I+3Ng+wMW8uo7z8KawBM8a/YFA\nQzVBP0YLAgMBAAECggEAO4oDE90Uk5WM+H331I9qYtFIyPqtcrgP6ai+oUXxqtj+\nHXDjkvRzwMZ2v1GnYPiGkBppbhxTaa2aZvGLkxnFlPbZK93H36XecGr6qc4LH2tt\nzX4mRPxFi6aWAAUacgPLQu6s+AaKKu68nyRIRT+LdJYtPlLJjE1Ix+M7nNnUB4ad\nsJgG0KiMJib4q721VoEpQCfzgNsKN2TX0pJovokNv8slULMKouul94bSfRn7WeEo\nSyVceewz2JNMmym529bcnrdkSWujLEzXrA5V8GFaNgUcc+oSDlm7maPu9uSMFTv/\nceXgCKikYqik5XOFXjy4xpOnTII9cMUi8nkEWox+AQKBgQDkGBQ0AO1WOWylNCmH\n0Wk53m8701JSOsigG3ZXz7sQYa9rL57bkAk+T4oKL4AS2F14ARo672G2jlga8MY+\nGwBII8eStqtvBgpbfFR458rQT9QmeN59xExHxlDQHq6x9BV27cBb4fr6i9+YnGG0\nGwL3FWx09BSlPgGKIHK8xITJCwKBgQDFuYEPmf08fNq7fWZHqQvU++ma7iuUSCNW\n0v3YAnWO3EIm0rvFjpXzp7t8crkkcywj6TmFtttMm7mXT5nY53C4nDiLl72d8hfr\nFCTXY1NLgucj9AsM1OZnqV0g0FgXUXPFyr4acjYT990Qf9HF/KHLZztkLuxci5jb\np7zht4+XAQKBgQCOBiw2QUmGwdTTfQpLBmqV3Nm4D5oXl4CqqM7kWHVq+thGTm2E\n20fWI6KZOwBtO4nfmhgiEEHwcOuNQtS9gQSI5rZytQlD5Sf31Q+oBPQ1By/bELHA\n78RrgKF7JU+zgH8JAXsf+zLSZNvB48W2ZodPIGja3cwpI9XDkva+cUMZBwKBgDPB\nqjHuSiaCPDNl0NcjPfCjfHPMsmWfOHjqw/2+Lw2VRE+rS/GbsE7WcjJSSXpsF3rS\n+vawddkozjz4Xjoz4wLACeEoeD8W9wHXBQnIey5B9sUnhZj3RdSOtcz4HIcGEDsP\nJhIAIX26nQhLnRqpVaTLwfUof0B+XiXpU3z2MsUBAoGBAME1VwH07HSFjsjRKK+C\n/GphuvXBpBED1hGX7YIE4mF3HCVM8WilvW+2c5cxOnIPEL/M5W69h8Wl5okojpNQ\ngQiXCEd4PAnRNUeAw7fGq9jnl0ax/wmLIXnDl3czojhpKmrKg5cNhRQw0OYjEZrG\nmAO3VDeMT0xk9E1SoTMqTiEO\n-----END PRIVATE KEY-----\n",
+                "client_email": "collection-app@st-project-387317.iam.gserviceaccount.com",
+                "client_id": "116665121729126589127",
+                "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+                "token_uri": "https://oauth2.googleapis.com/token",
+                "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+                "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/collection-app%40st-project-387317.iam.gserviceaccount.com",
+                "universe_domain": "googleapis.com"
+                }
+
+            scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/spreadsheets", "https://www.googleapis.com/auth/drive.file", "https://www.googleapis.com/auth/drive"]
+            creds = ServiceAccountCredentials.from_json_keyfile_dict(GDRIVE_CREDS, scope)
+            client = gspread.authorize(creds)
+            investor_sheet = client.open("streamlit_data").worksheet('investor_details')
+            data = investor_sheet.get_all_records()
+            investor_data = pd.DataFrame(data)
+
+            n = 6
+            investor_id = ''.join(["{}".format(random.randint(1, 9)) for num in range(0, n)])
+
+            st.session_state.investor_id = str(investor_id)
+            st.session_state.investor_name = name
+    
+            investor_reg_login_details_dict = {
+                'investor_name': name,
+                'email': email,
+                'phone': full_phone_number,
+                'password': password,
+            }
+
+            details_dict = {
+                "name": name, 
+                "available_cash": "10000", 
+                "committed_cash": "0", 
+                "oustanding_principal": "0", 
+                "account_value": "10000", 
+                "interest_received": "0", 
+                "Annual_returns": "0", 
+                "invested_amount": "0"
+            }
+
+            new_row = {
+                "investor_id": str(investor_id),
+                "details_dict": json.dumps(details_dict),
+                "notes_dict": json.dumps({}),
+                "investor_reg_login": json.dumps(investor_reg_login_details_dict)
+            }
+
+            investor_sheet.append_row(list(new_row.values()), value_input_option='USER_ENTERED', insert_data_option='INSERT_ROWS', table_range="A1")
+            
+            new_investor_data = pd.DataFrame([new_row])
+            merged_data = pd.concat([investor_data, new_investor_data], ignore_index = True)
+            st.session_state.investor_data = merged_data
+
+            st.session_state.reg_login_details = investor_reg_login_details_dict
+            st.session_state.main_step = 2
+            st.experimental_rerun()
+
+    elif continue_btn and (not name or not email or not full_phone_number or not password):
+        st.error("Please Complete All Details Before Submitting")
 
     st.markdown('<h4 class="account">Already have an account? <a href="YOUR_SIGNIN_PAGE_URL">Sign In</a></h4>', unsafe_allow_html=True)
-    
-# def Otp_page():
-#     set_custom_css()
-#     logo_url='https://objectstorage.me-jeddah-1.oraclecloud.com/n/idcsprod/b/me-jeddah-idcs-1-9E6C09D36371AB1B7C12FA52FA120B95980D070A43765EF7F2A2F0B0F82948E6/o/images/202109131530/1631547034999/Alraedah-Logo-Landscape-2.jpg'
-#     # st.markdown(custom_css, unsafe_allow_html=True)
-#   # Center the image dynamically based on screen width
-#     st.markdown(
-#     f"""
-#     <style>
-#     .center-image {{
-#         display: flex;
-#         justify-content: left;
-#     }}
-#     </style>
-#     <div class="center-image">
-#         <img src="{logo_url}" width="120" margin-bottom="30px" alt="Logo">
-#     </div>
-#     """,
-#     unsafe_allow_html=True
-# )
-#     st.markdown('<h3 class="otp_header">Enter OTP</h3>',unsafe_allow_html=True)
-#     # st.markdown(f'<h3 class="otp_description">Please enter the verification code we just sent to phone number{full_phone_number}</h3>',unsafe_allow_html=True)
-#     st.markdown(f'<h3 class="otp_description">Please enter the verification code we just sent to phone number +966 503261064</h3>',unsafe_allow_html=True)
-#     st.button("Verify") 
-
-# def review_details():
-#     set_custom_css()
-#     logo_url = 'https://objectstorage.me-jeddah-1.oraclecloud.com/n/idcsprod/b/me-jeddah-idcs-1-9E6C09D36371AB1B7C12FA52FA120B95980D070A43765EF7F2A2F0B0F82948E6/o/images/202109131530/1631547034999/Alraedah-Logo-Landscape-2.jpg'
-
-#     # Center the image dynamically based on screen width
-#     st.markdown(
-#         f"""
-#         <style>
-#         .center-image {{
-#             display: flex;
-#             justify-content: left;
-#         }}
-#         </style>
-#         <div class="center-image">
-#             <img src="{logo_url}" width="120" margin-bottom="30px" alt="Logo">
-#         </div>
-#         """,
-#         unsafe_allow_html=True
-#     )
-#       # Key-value pairs to display
-#      # Center the image dynamically based on screen width
-#     st.markdown(
-#         f"""
-#         <style>
-#         .details-item {{
-#             display: flex;
-#             flex-direction: column;
-#             # margin-bottom: 2px;  /* Reduce the margin to reduce spacing */
-#         }}
-#         .Review_Keys {{
-#             color: #717171;
-#             font-family: Open Sans;
-#             font-size: 12px;
-#             font-style: normal;
-#             font-weight: 400;
-#             line-height: normal;
-#         }}
-#         .Review_Values {{
-#             color: #000;
-#             font-family: Open Sans;
-#             font-size: 14px;
-#             font-style: normal;
-#             font-weight: 600;
-#             line-height: normal;
-#         }}
-#         </style>
-#         """,
-#         unsafe_allow_html=True
-#     )
-
-#     st.markdown('<h3 class="review_details_header">Review details</h3>', unsafe_allow_html=True)
-#     st.markdown('<h5 class="review_details_description">Please review and confirm your details to proceed</h5>', unsafe_allow_html=True)
-
-#     # Key-value pairs to display
-#     details = {
-#         "Full Name": "Nur Ahmed",
-#         "Phone number": "+966 55 675 8949",
-#         "Employer": "NymCard",
-#         "Employment title": "Manager",
-#         "Salary": "SAR 30,000",
-#         "Simah Score": "720",
-#         "ID Number": "************",
-#     }
-
-#     # Display additional details with labels and values using a for loop
-#     for key, value in details.items():
-#         st.markdown(f'<div class="details-item">', unsafe_allow_html=True)
-#         st.markdown(f'<h5 class="Review_Keys">{key}</h5>', unsafe_allow_html=True)
-#         st.markdown(f'<h5 class="Review_Values">{value}</h5>', unsafe_allow_html=True)
-#         st.markdown('</div>', unsafe_allow_html=True)
-#     st.markdown('<button class="Review_Confirm">Confirm</button>', unsafe_allow_html=True)
-
+ 
 def borrower_flow():
+    display_logo()
     set_custom_css()
     st.markdown('<h1 class="title">Welcome to Alraedah</h1>',unsafe_allow_html=True)
 

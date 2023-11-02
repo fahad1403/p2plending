@@ -8,11 +8,15 @@ import gspread
 from oauth2client.service_account import ServiceAccountCredentials
 from common_investor import set_custom_css_investor
 import json
+import random
+from datetime import datetime
 
 st.set_page_config(layout="wide")
 investor_account_df = {}
 business_df = {}
 investor_all_dicts = {}
+notes_df = {}
+notes_dict = {}
 sheet = None
 business_sheet = None
 
@@ -23,6 +27,8 @@ def summary():
         global investor_all_dicts
         global sheet
         global business_sheet
+        global notes_df
+        global notes_dict
 
         GDRIVE_CREDS = {
             "type": "service_account",
@@ -43,29 +49,55 @@ def summary():
         client = gspread.authorize(creds)
         sheet = client.open("streamlit_data").worksheet('investor_details')
 
-        data = sheet.get_all_records()
-        df = pd.DataFrame(data)
-        details_dict_str = df['details_dict'].iloc[0]
+        # data = sheet.get_all_records()
+        # df = pd.DataFrame(data)
+        df = st.session_state.investor_data
+
+        investor_id = st.session_state.investor_id
+        investor_name = st.session_state.investor_name
+
+        print(f"\n\ninvestor df: {df}\n\n")
+
+        print(f"\n\ninvestor id: {investor_id}\n\n")
+
+        investor = df[df['investor_id'] == investor_id]
+        print(f"\n\ninvestor: {investor}\n\n")
+
+        investor_data = df[df['investor_id'] == investor_id].iloc[0]
+        details_dict_str = investor_data['details_dict']
         details_dict = json.loads(details_dict_str)
         investor_account_df = details_dict
-        investor_all_dicts = df
+        investor_all_dicts = investor_data
+
+        notes_dict_str = investor_all_dicts['notes_dict']
+        notes_dict = json.loads(notes_dict_str)
+        notes_data = {
+            'Loan Id': [note['loan_id'] for note in notes_dict.values()],
+            'Note Id': list(notes_dict.keys()),
+            'Paid Status': [note['status'] for note in notes_dict.values()]
+        }
+
+        notes_df = pd.DataFrame(notes_data)
 
         business_sheet = client.open("streamlit_data").worksheet('Business_details')
         business_data = business_sheet.get_all_records()
         business_df = pd.DataFrame(business_data)
+        # business_df = st.session_state.business_data
 
-        notes_dict = {
+        business_notes_dict = {
             'Available Cash': int(details_dict['available_cash']),
             'Committed Cash': int(details_dict['committed_cash']),
             'Outstanding Principal': int(details_dict['oustanding_principal']),
             'Account Value': int(details_dict['account_value']),
         }
 
-        account_no = df['investor_id'].iloc[0]
+        account_no = st.session_state.investor_id
         annualized_returns = int(details_dict['Annual_returns'])
         interest_received = int(details_dict['interest_received'])
         invested_amount = int(details_dict['invested_amount'])
         total = float(invested_amount) + float(interest_received)
+
+        st.markdown(f'<h1 class="title" style="font-weight: lighter; font-size: 28px; margin-bottom: 10px;">Welcome {investor_name} !</h1>',unsafe_allow_html=True)
 
         card_container = st.container()
 
@@ -76,13 +108,13 @@ def summary():
                     <div style='flex: 1; color: #4d8ec3; font-family: Arial; font-size: 12px'>
                         <h3 style='font-size: 16px; color: gray; padding: -10px; font-weight:bold; margin-left:0px;'>My Account #{account_no}</h3>
                         <ul style='list-style-type:none; padding: 0;'>
-                            {''.join(f"<li style='font-size: 14px;  margin-bottom: 7px; margin-left:5px;'>{key}</li>" for key in notes_dict.keys())}
+                            {''.join(f"<li style='font-size: 14px;  margin-bottom: 7px; margin-left:5px;'>{key}</li>" for key in business_notes_dict.keys())}
                         </ul>
                     </div>
                     <div style='flex: 1; color: #4d8ec3; font-family: Arial'>
                         <h3 style='font-size: 16px; color: gray; padding-left: 18px; margin-top:0px;'>Details</h3>
                         <ul style='list-style-type:none; padding: 0;'>
-                            {''.join(f"<li style='font-size: 14px;  margin-bottom: 7px; margin-left: 60px;'>SAR {value}</li>" for value in notes_dict.values())}
+                            {''.join(f"<li style='font-size: 14px;  margin-bottom: 7px; margin-left: 60px;'>SAR {value}</li>" for value in business_notes_dict.values())}
                         </ul>
                     </div>
                 </div>
@@ -98,9 +130,9 @@ def summary():
                 <div style='background-color: #EAF1FA; padding: 10px; border-radius: 10px; display: flex;'>
                     <div style='flex: 1; color: #2A6FCA; font-family: Arial; font-size: 12px'>
                         <ul style='list-style-type:none; padding: 0;'>
-                            <li style='font-size: 24px;  margin-bottom: 0px; padding: 0; font-weight:bold; margin-left:5px;'>SAR {notes_dict.get('Available Cash'):.2f}</li>
+                            <li style='font-size: 24px;  margin-bottom: 0px; padding: 0; font-weight:bold; margin-left:5px;'>SAR {business_notes_dict.get('Available Cash'):.2f}</li>
                             <li style='font-size: 14px;  margin-bottom: 8px; color: #000000; margin-left:0px;'>Adjusted Account Value</li>
-                            <li style='font-size: 12px;  margin-bottom: 4px; color: #717171; margin-left:0px;'>Available cash: SAR {notes_dict.get('Available Cash')}</li>
+                            <li style='font-size: 12px;  margin-bottom: 4px; color: #717171; margin-left:0px;'>Available cash: SAR {business_notes_dict.get('Available Cash')}</li>
                         </ul>
                     </div>
                 </div>
@@ -145,9 +177,9 @@ def summary():
                 unsafe_allow_html=True,
             )
             with st.expander("My notes in a glance"):
-                st.write("Details")
-            with st.expander("Payments"):
-                st.write("Details")
+                st.dataframe(notes_df)
+            # with st.expander("Payments"):
+            #     st.write("Details")
 
 
 def portfolio_details():
@@ -341,19 +373,9 @@ def display_note_details(note_id, note_details):
         )
 
 def portfolio_notes():
-    global investor_all_dicts
-    notes_dict_str = investor_all_dicts['notes_dict'].iloc[0]
-    notes_dict = json.loads(notes_dict_str)
+    global notes_dict
+    df = notes_df
     with st.spinner("Loading Details"):
-
-        data = {
-            'Loan Id': [note['loan_id'] for note in notes_dict.values()],
-            'Note Id': list(notes_dict.keys()),
-            'Paid Status': [note['status'] for note in notes_dict.values()]
-        }
-
-        df = pd.DataFrame(data)
-
         options_builder = GridOptionsBuilder.from_dataframe(df)
         options_builder.configure_column('Note Id')
         options_builder.configure_selection(selection_mode="single", use_checkbox=True)
@@ -420,11 +442,11 @@ def load_invest_details(name, rate, term, loan_required):
     st.markdown('---')
     st.markdown('<h3 style="text-align: center;">Investment Details</h3>', unsafe_allow_html=True)
     
-    funded = 0
-    if selected_amount == 50:
-        funded = "0%"
-    else:
-        funded = f'{round((selected_amount/int(loan_required))*100,2)}%'
+    # funded = 0
+    # if selected_amount == 50:
+    #     funded = "0%"
+    # else:
+    funded = f'{round((selected_amount/int(loan_required))*100,2)}%'
 
     summary_dict = {
         'Name': name,
@@ -437,7 +459,7 @@ def load_invest_details(name, rate, term, loan_required):
 
     st.markdown(
             f"""
-            <div style='background-color: #f4f4f4; padding: 10px; border-radius: 10px; display: flex;'>
+            <div style='background-color: #f4f4f4; padding: 10px; border-radius: 10px; display: flex; margin-bottom: 20px;'>
                 <div style='flex: 1; color: #4d8ec3; font-family: Arial; font-size: 12px'>
                     <h3 style='font-size: 16px; color: gray; padding-left: -10px; padding-top: 20px; padding-bottom: 20px;'>Summary</h3>
                     <ul style='list-style-type:none; padding: 0;'>
@@ -466,8 +488,16 @@ def invest_in_business(investor_id, name, rate, term, selected_amount, required,
     global sheet
     global business_sheet
 
-    investor_id = str(investor_id)
-    investor_all_dicts_json = json.loads(investor_all_dicts['details_dict'][selected_index])
+    investor_id = int(investor_id)
+
+    print(f"\n\nInvestor_all_dicts: {investor_all_dicts}\n\n")
+    # investor_all_dicts_json = json.loads(investor_all_dicts['investor_id'][investor_id])
+    investor_all_dicts_df = pd.DataFrame([investor_all_dicts])
+    investor_all_dicts_df['details_dict']  = investor_all_dicts_df['details_dict'].apply(lambda x: json.loads(x))
+    print(f"\n\nDeatils: {investor_all_dicts_df['details_dict'] }")
+    investor_all_dicts_dict = dict(zip(investor_all_dicts_df['investor_id'], investor_all_dicts_df['details_dict'] ))
+    print(f"\n\nInvestor all dicts: {investor_all_dicts_dict}")
+    investor_all_dicts_json = investor_all_dicts_dict.get(investor_id)
 
     print(f"\n\nPrevious history: {investor_all_dicts_json}\n\n")
 
@@ -499,13 +529,22 @@ def invest_in_business(investor_id, name, rate, term, selected_amount, required,
 
     else:
         ## use investor_id here
+        n = 6
+        loan_id = ''.join(["{}".format(random.randint(1, 9)) for num in range(0, n)])
+        current_date = datetime.now()
+
+        formatted_date = current_date.strftime("%m/%d/%Y")
+
         new_investment = {
                                 investor_id: {
+                                        "investor_name": st.session_state.investor_name,
+                                        "loan_id": str(loan_id),
                                         "interest_rate": str(rate),
                                         "term": str(term),
                                         "simah": "695-699",
-                                        "total_required": "200000",
-                                        "amount_funded": str(selected_amount)
+                                        "total_required": str(required),
+                                        "amount_funded": str(selected_amount),
+                                        "Date Invested": formatted_date,
                                 }
                             }
             
@@ -518,11 +557,16 @@ def invest_in_business(investor_id, name, rate, term, selected_amount, required,
     # business_sheet.update([business_df.columns.values.tolist()] + business_df.values.tolist())
 
     investor_update = json.dumps(investor_all_dicts_json)
-    investor_all_dicts.at[selected_index, 'details_dict'] = investor_update
+    investor_all_dicts_df.at[selected_index, 'details_dict'] = investor_update
+    print(f"\n\nBusiness Df: {business_df}\n\n")
+    print(f"\n\nInvestor Df: {investor_all_dicts_df}\n\n")
     # sheet.update([investor_all_dicts.columns.values.tolist()] + investor_all_dicts.values.tolist())
 
     if st.button("Done"):
         modal.close()
+
+    st.text("")
+    st.text("")
         
 
 def invest():
@@ -580,7 +624,8 @@ def invest():
                 st.text("")
                 st.text("")
                 selected_amount, funded = load_invest_details(name, rate, term, loan_required)
-                investor_id = "561374"
+                # investor_id = "561374"
+                investor_id = st.session_state.investor_id
 
                 if st.button("Confirm Investment"):
                     invest_in_business(investor_id, name, rate, term, selected_amount, loan_required, funded, selected_index, modal)
@@ -592,6 +637,21 @@ def invest():
         # st.write(f"<b>Rate: </b>{sel_row[0]['Rate']}",unsafe_allow_html=True)
 
 def investor_main():
+    logo_url='https://objectstorage.me-jeddah-1.oraclecloud.com/n/idcsprod/b/me-jeddah-idcs-1-9E6C09D36371AB1B7C12FA52FA120B95980D070A43765EF7F2A2F0B0F82948E6/o/images/202109131530/1631547034999/Alraedah-Logo-Landscape-2.jpg'
+    st.markdown(
+        f"""
+        <style>
+        .center-image {{
+            display: flex;
+            justify-content: center;
+        }}
+        </style>
+        <div class="center-image">
+            <img src="{logo_url}" width="100" alt="Logo">
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
     set_custom_css_investor()
     st.markdown(
         """

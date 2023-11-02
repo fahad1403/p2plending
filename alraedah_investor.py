@@ -385,22 +385,22 @@ def portfolio_notes():
         
         grid = AgGrid(df, columns_auto_size_mode=ColumnsAutoSizeMode.FIT_CONTENTS, gridOptions = grid_options, allow_unsafe_jscode=True, fit_columns_on_grid_load=True, theme='alpine')
         sel_row = grid["selected_rows"]
-        modal = Modal(key="Portfolio_Modal",title="")
+        # modal = Modal(key="Portfolio_Modal",title="")
         if sel_row:
             selected_index = sel_row[0]['_selectedRowNodeInfo']['nodeRowIndex']
             note_id = sel_row[0]['Note Id']
             # st.write(f"<b>Status: </b>{sel_row[0]['Status']}",unsafe_allow_html=True)
-            open_modal = st.button("View Details")
-            if open_modal:
-                modal.open()
+            # open_modal = st.button("View Details")
+            # if open_modal:
+                # modal.open()
 
-            if modal.is_open():
-                with modal.container():
-                    st.text("")
-                    st.text("")
-                    display_note_details(note_id, notes_dict.get(note_id))
+            # if modal.is_open():
+            with st.container():
+                st.text("")
+                st.text("")
+                display_note_details(note_id, notes_dict.get(note_id))
 
-                    st.text("")
+                st.text("")
 
 def portfolio_ps():
     global investor_account_df
@@ -480,7 +480,7 @@ def load_invest_details(name, rate, term, loan_required):
 
     return selected_amount, funded
 
-def invest_in_business(investor_id, name, rate, term, selected_amount, required, funded, selected_index, modal):
+def invest_in_business(investor_id, name, rate, term, selected_amount, required, funded, selected_index):
     ## display congratulations screen
     ## use business details sheet and update the investment part
     ## update capital and investment for investor sheet
@@ -518,7 +518,7 @@ def invest_in_business(investor_id, name, rate, term, selected_amount, required,
         print(f"\n\nNew history: {new_values}\n\n")
         investor_all_dicts_json.update((key, new_values[key]) for key in keys_to_update if key in investor_all_dicts_json)
         
-        st.markdown('<h1 class="title">Investment successful</h1>',unsafe_allow_html=True)
+        st.success('Investment successful')
         st.write(f"You have reserved SAR {float(selected_amount)} for loan. If the loan is fully funded, your account ending in 4431 will be deducted for the amount")
         
         investor_investment_in_business = json.loads(business_df['investor_investments'][selected_index])
@@ -564,10 +564,10 @@ def invest_in_business(investor_id, name, rate, term, selected_amount, required,
         investor_all_dicts_df.at[selected_index, 'details_dict'] = investor_update
         print(f"\n\nBusiness Df: {business_df}\n\n")
         print(f"\n\nInvestor Df: {investor_all_dicts_df}\n\n")
-        sheet.update([investor_all_dicts.columns.values.tolist()] + investor_all_dicts.values.tolist())
+        # sheet.update([investor_all_dicts.columns.values.tolist()] + investor_all_dicts.values.tolist())
 
-        if st.button("Done"):
-            modal.close()
+        # if st.button("Done"):
+        #     st.container = ''
 
         st.text("")
         st.text("")
@@ -612,14 +612,14 @@ def invest():
     
     grid = AgGrid(df, columns_auto_size_mode=ColumnsAutoSizeMode.FIT_CONTENTS, gridOptions = grid_options, allow_unsafe_jscode=True, fit_columns_on_grid_load=True, theme='alpine')
     sel_row = grid["selected_rows"]
-    modal = Modal(key="Invest_Modal",title="")
+    # modal = Modal(key="Invest_Modal",title="")
     if sel_row:
-        open_modal = st.button("View Details", key="invest")
-        if open_modal:
-            modal.open()
+        # open_modal = st.button("View Details", key="invest")
+        # if open_modal:
+            # modal.open()
 
-        if modal.is_open():
-            with modal.container():
+        # if modal.is_open():
+            with st.container():
                 selected_index = sel_row[0]['_selectedRowNodeInfo']['nodeRowIndex']
                 name = sel_row[0]['Name']
                 rate = sel_row[0]['Rate']
@@ -632,7 +632,7 @@ def invest():
                 investor_id = st.session_state.investor_id
 
                 if st.button("Confirm Investment"):
-                    invest_in_business(investor_id, name, rate, term, selected_amount, loan_required, funded, selected_index, modal)
+                    invest_in_business(investor_id, name, rate, term, selected_amount, loan_required, funded, selected_index)
                     # modal.close()
 
                 st.text("")

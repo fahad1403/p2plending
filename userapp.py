@@ -312,6 +312,8 @@ def consumer_page():
     else:
         min_value = 0
     
+    max_value = max(values)
+
     if min_value == max_value:
         min_value = min_value - 300
     
@@ -343,8 +345,9 @@ def consumer_page():
             min_value = min(positive_values)
         else:
             min_value = 0
+        
+        max_value = max(values)
 
-    max_value = max(values)
     initial_interest_rate = 5.0
     print('this is initial rate',initial_interest_rate)
 

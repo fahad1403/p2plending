@@ -11,6 +11,7 @@ from oauth2client.service_account import ServiceAccountCredentials
 import random
 import json
 import re
+from bcommon import show_logout
 
 def monthly_repayment_page():
     set_custom_css()
@@ -458,6 +459,8 @@ def business_overview():
             unsafe_allow_html=True
         )
     set_custom_css_investor()
+
+    show_logout()
 
     business_name = st.session_state.business_name
 

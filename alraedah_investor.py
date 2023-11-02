@@ -10,6 +10,7 @@ from common_investor import set_custom_css_investor
 import json
 import random
 from datetime import datetime
+from bcommon import show_logout
 
 st.set_page_config(layout="wide")
 investor_account_df = {}

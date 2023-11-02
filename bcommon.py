@@ -343,3 +343,30 @@ def set_custom_css():
     </style>
     """
     st.markdown(custom_css,unsafe_allow_html=True)
+
+
+def perform_logout():
+    st.write("You have been logged out.")
+    for key in st.session_state.keys():
+        del st.session_state[key]
+    st.experimental_rerun
+    # borrower_flow()
+
+def show_logout():
+    st.markdown(
+        """
+        <style>
+        .logout {
+            background-color: #f44336;
+            color: white;
+            padding: 8px 20px;
+            font-size: 16px;
+            border: none;
+            border-radius: 4px;
+        }
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
+    if st.button("Logout", key="logout", on_click=perform_logout, help="Click to logout"):
+        pass

@@ -21,6 +21,31 @@ header{visibility:hidden;}
 """
 st.markdown(hide_streamlit_style, unsafe_allow_html=True)
 
+def perform_logout():
+    st.write("You have been logged out.")
+    st.experimental_rerun
+    borrower_flow()
+
+def show_logout():
+    st.markdown(
+        """
+        <style>
+        .logout {
+            background-color: #f44336;
+            color: white;
+            padding: 8px 20px;
+            font-size: 16px;
+            border: none;
+            border-radius: 4px;
+        }
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
+    if st.button("Logout", key="logout", on_click=perform_logout, help="Click to logout"):
+        for key in st.session_state.keys():
+            del st.session_state[key]
+
 def check_investor_credentials(username, password, credentials_list):
     for cred in credentials_list:
         if (username, password) == (cred[0], cred[1]):

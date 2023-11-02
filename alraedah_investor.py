@@ -715,6 +715,8 @@ def investor_main():
                 """
     st.markdown(hide_streamlit_style, unsafe_allow_html=True) 
 
+    show_logout()
+    
     tab1, tab2, tab3 = st.tabs(
         ["Summary", "Portfolio", "Invest"]
     )

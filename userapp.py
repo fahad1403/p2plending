@@ -625,7 +625,7 @@ def business_main():
                 }
                 </style>
                 """
-    # st.markdown(hide_streamlit_style, unsafe_allow_html=True) 
+    st.markdown(hide_streamlit_style, unsafe_allow_html=True) 
 
     if 'step_business' not in st.session_state:
         st.session_state.step_business = 1

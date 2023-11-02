@@ -242,7 +242,7 @@ def set_custom_css_investor():
         z-index: 1001 !important;
         border-radius: 5px !important;
         overflow-y: auto !important;
-        max-height: 570px;
+        max-height: 500px;
     }
     div[data-modal-container='true'][key='Portfolio_Modal'] > div:first-child > div:first-child{
         width: unset !important;
@@ -258,7 +258,7 @@ def set_custom_css_investor():
         z-index: 1001 !important;
         border-radius: 5px !important;
         overflow-y: auto !important;
-        max-height: 570px;
+        max-height: 500px;
     }
     div[data-modal-container='true'][key='Portfolio_Modal'] > div:first-child > div:first-child::after {
     content: '';

@@ -213,32 +213,34 @@ def set_custom_css():
     div[data-modal-container='true'][key='Invest_Modal'] > div:first-child > div:first-child{
         width: unset !important;
         background-color: #fff;
-        padding-top: 80px !important;
+        padding-top: 100px !important;
         padding-left: 10px !important;
         padding-right: 10px !important;
         padding-bottom: 30px !important;
-        margin-top: 0px !important;
+        margin-top: 10px !important;
         margin-left: -10px !important;
         margin-right: -10px !important;
         margin-bottom: 0px !important;
         z-index: 1001 !important;
         border-radius: 5px !important;
-        overflow: auto !important;
+        overflow-y: auto !important;
+        max-height: 500px;
     }
     div[data-modal-container='true'][key='Portfolio_Modal'] > div:first-child > div:first-child{
         width: unset !important;
         background-color: #fff;
-        padding-top: 80px !important;
+        padding-top: 100px !important;
         padding-left: 10px !important;
         padding-right: 10px !important;
         padding-bottom: 30px !important;
-        margin-top: 0px !important;
+        margin-top: 10px !important;
         margin-left: -10px !important;
         margin-right: -10px !important;
         margin-bottom: 0px !important;
         z-index: 1001 !important;
         border-radius: 5px !important;
-        overflow-y: scroll !important;
+        overflow-y: auto !important;
+        max-height: 500px;
     }
     .st-emotion-cache-rj5w3t e1f1d6gn0{
                 width:90%;

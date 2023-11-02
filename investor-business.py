@@ -321,7 +321,7 @@ def create_account():
     elif continue_btn and (not name or not email or not full_phone_number or not password):
         st.error("Please Complete All Details Before Submitting")
 
-    st.markdown('<h4 class="account">Already have an account? <a href="YOUR_SIGNIN_PAGE_URL">Sign In</a></h4>', unsafe_allow_html=True)
+    st.markdown(f'<h4 class="account">Already have an account? <a href="#" onclick="signin()">Sign In</a></h4>', unsafe_allow_html=True)
  
 def borrower_flow():
     display_logo()

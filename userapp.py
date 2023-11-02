@@ -311,6 +311,39 @@ def consumer_page():
         min_value = min(positive_values)
     else:
         min_value = 0
+    
+    if min_value == max_value:
+        min_value = min_value - 300
+    
+    if min_value<=1000:
+        st.session_state.free_cash_flow_data = {
+            'free cash flows': {
+                '2022-07': 20000.12,
+                '2022-08': 35000.24,
+                '2022-09': -10000.31,
+                '2022-10': -2000.94
+            },
+            'opening balance': '91.29',
+            'closing balance': '10.92',
+            'number of deposits': '86',
+            'number of withdrawals': '318',
+            'revenues': '142,867.60',
+            'expenses': '142,947.97'
+        }
+
+        Free_CashFlow_Dict = st.session_state.free_cash_flow_data
+
+        simah_score = '695-699'
+        # Extract the values you want and multiply them by 4
+        free_cash_flows = Free_CashFlow_Dict['free cash flows']
+        values = [int(value * 4) for value in free_cash_flows.values()]
+
+        positive_values = [value for value in values if value > 0]
+        if positive_values:
+            min_value = min(positive_values)
+        else:
+            min_value = 0
+
     max_value = max(values)
     initial_interest_rate = 5.0
     print('this is initial rate',initial_interest_rate)

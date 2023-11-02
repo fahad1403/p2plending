@@ -506,68 +506,71 @@ def invest_in_business(investor_id, name, rate, term, selected_amount, required,
     committed_cash = investor_all_dicts_json.get("committed_cash")
     invested_amount = investor_all_dicts_json.get("invested_amount")
 
-    available_cash_update = int(available_cash) - int(selected_amount)
-    committed_cash_update = int(committed_cash) + int(selected_amount)
-    invested_amount_update = int(invested_amount) + int(selected_amount)
-
-    keys_to_update = ['available_cash', 'committed_cash', 'account_value', 'invested_amount']
-    new_values = {'available_cash': available_cash_update, 'committed_cash': committed_cash_update, 'account_value': available_cash_update, 'invested_amount': invested_amount_update}
-    print(f"\n\nNew history: {new_values}\n\n")
-    investor_all_dicts_json.update((key, new_values[key]) for key in keys_to_update if key in investor_all_dicts_json)
-    
-    st.markdown('<h1 class="title">Investment successful</h1>',unsafe_allow_html=True)
-    st.write(f"You have reserved SAR {float(selected_amount)} for loan. If the loan is fully funded, your account ending in 4431 will be deducted for the amount")
-    
-    investor_investment_in_business = json.loads(business_df['investor_investments'][selected_index])
-    print(f"\n\nBefore update: {investor_investment_in_business}\n\n")
-    if investor_id in investor_investment_in_business.keys():
-        investor_invested_dict = investor_investment_in_business[investor_id]
-        amount_funded = investor_invested_dict.get("amount_funded")
-        amount_funded_update = int(amount_funded) + int(selected_amount)
-        investor_invested_dict['amount_funded'] = amount_funded_update
-
-        investor_investment_in_business.update(investor_invested_dict)
-
+    if available_cash < selected_amount:
+        st.error("Insufficient Funds, Please select a lower amount")
     else:
-        ## use investor_id here
-        n = 6
-        loan_id = ''.join(["{}".format(random.randint(1, 9)) for num in range(0, n)])
-        current_date = datetime.now()
+        available_cash_update = int(available_cash) - int(selected_amount)
+        committed_cash_update = int(committed_cash) + int(selected_amount)
+        invested_amount_update = int(invested_amount) + int(selected_amount)
 
-        formatted_date = current_date.strftime("%m/%d/%Y")
+        keys_to_update = ['available_cash', 'committed_cash', 'account_value', 'invested_amount']
+        new_values = {'available_cash': available_cash_update, 'committed_cash': committed_cash_update, 'account_value': available_cash_update, 'invested_amount': invested_amount_update}
+        print(f"\n\nNew history: {new_values}\n\n")
+        investor_all_dicts_json.update((key, new_values[key]) for key in keys_to_update if key in investor_all_dicts_json)
+        
+        st.markdown('<h1 class="title">Investment successful</h1>',unsafe_allow_html=True)
+        st.write(f"You have reserved SAR {float(selected_amount)} for loan. If the loan is fully funded, your account ending in 4431 will be deducted for the amount")
+        
+        investor_investment_in_business = json.loads(business_df['investor_investments'][selected_index])
+        print(f"\n\nBefore update: {investor_investment_in_business}\n\n")
+        if investor_id in investor_investment_in_business.keys():
+            investor_invested_dict = investor_investment_in_business[investor_id]
+            amount_funded = investor_invested_dict.get("amount_funded")
+            amount_funded_update = int(amount_funded) + int(selected_amount)
+            investor_invested_dict['amount_funded'] = amount_funded_update
 
-        new_investment = {
-                                investor_id: {
-                                        "investor_name": st.session_state.investor_name,
-                                        "loan_id": str(loan_id),
-                                        "interest_rate": str(rate),
-                                        "term": str(term),
-                                        "simah": "695-699",
-                                        "total_required": str(required),
-                                        "amount_funded": str(selected_amount),
-                                        "Date Invested": formatted_date,
+            investor_investment_in_business.update(investor_invested_dict)
+
+        else:
+            ## use investor_id here
+            n = 6
+            loan_id = ''.join(["{}".format(random.randint(1, 9)) for num in range(0, n)])
+            current_date = datetime.now()
+
+            formatted_date = current_date.strftime("%m/%d/%Y")
+
+            new_investment = {
+                                    investor_id: {
+                                            "investor_name": st.session_state.investor_name,
+                                            "loan_id": str(loan_id),
+                                            "interest_rate": str(rate),
+                                            "term": str(term),
+                                            "simah": "695-699",
+                                            "total_required": str(required),
+                                            "amount_funded": str(selected_amount),
+                                            "Date Invested": formatted_date,
+                                    }
                                 }
-                            }
-            
-        investor_investment_in_business.update(new_investment)
+                
+            investor_investment_in_business.update(new_investment)
 
-    print(f"\n\After update: {investor_investment_in_business}\n\n")
+        print(f"\n\After update: {investor_investment_in_business}\n\n")
 
-    business_update = json.dumps(investor_investment_in_business)
-    business_df.at[selected_index, 'investor_investments'] = business_update
-    # business_sheet.update([business_df.columns.values.tolist()] + business_df.values.tolist())
+        business_update = json.dumps(investor_investment_in_business)
+        business_df.at[selected_index, 'investor_investments'] = business_update
+        business_sheet.update([business_df.columns.values.tolist()] + business_df.values.tolist())
 
-    investor_update = json.dumps(investor_all_dicts_json)
-    investor_all_dicts_df.at[selected_index, 'details_dict'] = investor_update
-    print(f"\n\nBusiness Df: {business_df}\n\n")
-    print(f"\n\nInvestor Df: {investor_all_dicts_df}\n\n")
-    # sheet.update([investor_all_dicts.columns.values.tolist()] + investor_all_dicts.values.tolist())
+        investor_update = json.dumps(investor_all_dicts_json)
+        investor_all_dicts_df.at[selected_index, 'details_dict'] = investor_update
+        print(f"\n\nBusiness Df: {business_df}\n\n")
+        print(f"\n\nInvestor Df: {investor_all_dicts_df}\n\n")
+        sheet.update([investor_all_dicts.columns.values.tolist()] + investor_all_dicts.values.tolist())
 
-    if st.button("Done"):
-        modal.close()
+        if st.button("Done"):
+            modal.close()
 
-    st.text("")
-    st.text("")
+        st.text("")
+        st.text("")
         
 
 def invest():
@@ -716,7 +719,7 @@ def investor_main():
     st.markdown(hide_streamlit_style, unsafe_allow_html=True) 
 
     show_logout()
-    
+
     tab1, tab2, tab3 = st.tabs(
         ["Summary", "Portfolio", "Invest"]
     )
